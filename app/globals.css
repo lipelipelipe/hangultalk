@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+@layer utilities {
+  .pb-safe {
+    padding-bottom: max(env(safe-area-inset-bottom, 20px), 1.25rem);
+  }
+  .pt-safe {
+    padding-top: max(env(safe-area-inset-top, 20px), 0.75rem);
+  }
+}
+
+html, body {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior-y: none;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+}

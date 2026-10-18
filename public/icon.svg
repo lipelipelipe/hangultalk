@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF" />
+      <stop offset="50%" stop-color="#0055D4" />
+      <stop offset="100%" stop-color="#1A1F36" />
+    </linearGradient>
+    <linearGradient id="taegeukRed" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF3B30" />
+      <stop offset="100%" stop-color="#D70015" />
+    </linearGradient>
+    <linearGradient id="taegeukBlue" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#007AFF" />
+      <stop offset="100%" stop-color="#0040A8" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- iOS App Icon Squircle Base -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)" />
+
+  <!-- Inner Soft Ring -->
+  <circle cx="256" cy="256" r="190" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="4" />
+
+  <!-- Korean Taegeuk Motif Circle & Mic Combined -->
+  <g filter="url(#shadow)">
+    <!-- White Circular Card -->
+    <circle cx="256" cy="240" r="140" fill="#FFFFFF" />
+
+    <!-- Stylized Hangul '한' Character (Korean calligraphy modern) -->
+    <text x="256" y="278" font-family="-apple-system, 'Apple SD Gothic Neo', sans-serif" font-size="142" font-weight="900" fill="#1C1C1E" text-anchor="middle">한</text>
+  </g>
+
+  <!-- Speech Waves / Mic Accent at Bottom -->
+  <g transform="translate(196, 396)">
+    <rect x="0" y="20" width="14" height="30" rx="7" fill="#34C759" />
+    <rect x="26" y="10" width="14" height="50" rx="7" fill="#FF9500" />
+    <rect x="52" y="0" width="16" height="70" rx="8" fill="#007AFF" />
+    <rect x="80" y="10" width="14" height="50" rx="7" fill="#FF3B30" />
+    <rect x="106" y="20" width="14" height="30" rx="7" fill="#5856D6" />
+  </g>
+</svg>

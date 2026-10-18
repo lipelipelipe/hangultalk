@@ -1,0 +1,6 @@
+{
+  "name": "HangulTalk - Aprenda Coreano com Conversação",
+  "description": "App estilo iOS nativo focado em conversação em coreano com ditado de voz e feedback de pronúncia em tempo real.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
