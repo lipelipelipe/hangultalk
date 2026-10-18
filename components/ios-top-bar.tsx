@@ -42,7 +42,7 @@ export const IOSTopBar: React.FC<IOSTopBarProps> = ({
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#007AFF] to-[#0055D4] flex items-center justify-center text-white font-bold text-sm shadow-xs">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#00C3FF] to-[#007AFF] flex items-center justify-center text-slate-950 font-black text-sm shadow-xs">
                 한
               </div>
               <div className="leading-tight">
@@ -56,6 +56,17 @@ export const IOSTopBar: React.FC<IOSTopBarProps> = ({
 
         {/* Center: Desktop Navigation Links / Mobile Title */}
         <div className="hidden md:flex items-center gap-6">
+          <button
+            onClick={() => setActiveTab('falou-srs')}
+            className={`text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] flex items-center gap-1 ${
+              activeTab === 'falou-srs'
+                ? 'text-[#00C3FF] font-bold'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-[#00C3FF]" />
+            <span>Método SRS Falou</span>
+          </button>
           <button
             onClick={() => setActiveTab('conversas')}
             className={`text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] flex items-center ${
@@ -75,16 +86,6 @@ export const IOSTopBar: React.FC<IOSTopBarProps> = ({
             }`}
           >
             Guia Hangul
-          </button>
-          <button
-            onClick={() => setActiveTab('pratica')}
-            className={`text-sm font-medium transition-colors whitespace-nowrap min-h-[44px] flex items-center ${
-              activeTab === 'pratica'
-                ? 'text-[#007AFF] font-semibold'
-                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900'
-            }`}
-          >
-            Frases do Dia
           </button>
           <button
             onClick={() => setActiveTab('perfil')}
