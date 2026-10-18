@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Pause,
@@ -11,8 +11,7 @@ import {
   Check,
   ArrowRight,
   RotateCcw,
-  Trophy,
-  Sparkles
+  Trophy
 } from 'lucide-react';
 import { SRSCard, SRS_LESSON_CARDS } from '@/lib/srs-learning-data';
 import { FalouMascot } from '@/components/falou-mascot';
@@ -39,9 +38,6 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   const [isGrammarOpen, setIsGrammarOpen] = useState(false);
   const [lessonFinished, setLessonFinished] = useState(false);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
-  const [isPlayingStudioAudio, setIsPlayingStudioAudio] = useState(false);
-
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentCard: SRSCard = queue[currentIndex] || SRS_LESSON_CARDS[0];
 
@@ -60,33 +56,13 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     Math.round(((SRS_LESSON_CARDS.length - queue.length + currentIndex) / SRS_LESSON_CARDS.length) * 100)
   );
 
-  // Play studio-quality audio with fallback
-  const playCardAudio = React.useCallback((slow: boolean = false) => {
-    const file = slow ? (currentCard.slowAudioFile || currentCard.audioFile) : currentCard.audioFile;
-
-    if (file) {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-      const audio = new Audio(file);
-      audioRef.current = audio;
-      setIsPlayingStudioAudio(true);
-      if (slow && !currentCard.slowAudioFile) {
-        audio.playbackRate = 0.75;
-      }
-      audio
-        .play()
-        .then(() => {
-          audio.onended = () => setIsPlayingStudioAudio(false);
-        })
-        .catch(() => {
-          setIsPlayingStudioAudio(false);
-          speak(currentCard.hangul, slow ? 0.75 : 1.0);
-        });
-    } else {
+  // Play crisp, pure Korean audio (no English prefixes!)
+  const playCardAudio = useCallback(
+    (slow: boolean = false) => {
       speak(currentCard.hangul, slow ? 0.75 : 1.0);
-    }
-  }, [currentCard.audioFile, currentCard.slowAudioFile, currentCard.hangul, speak]);
+    },
+    [currentCard.hangul, speak]
+  );
 
   // Play audio when entering a new card in 'intro' phase
   useEffect(() => {
@@ -155,7 +131,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
       return updated;
     });
 
-    // Speak audio so the user hears it again
+    // Speak audio slow and clean so the user hears it again
     playCardAudio(true);
 
     // Switch to retry phase so they can try again with visual guide
@@ -198,8 +174,6 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     }
   };
 
-  const isAudioActive = isPlayingStudioAudio || isTTSPlaying;
-
   return (
     <div className="relative min-h-screen bg-[#0F1423] text-white flex flex-col justify-between select-none overflow-x-hidden font-sans">
       {/* Top Bar: Progress Bar & Pause Button */}
@@ -237,7 +211,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             대박! Memória Consolidada!
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            Você completou a sequência de <strong>Repetição Espaçada (SRS)</strong>! As 10 frases foram fixadas na sua memória de longo prazo com áudio nativo de estúdio.
+            Você completou a sequência de <strong>Repetição Espaçada (SRS)</strong>! As 10 frases foram fixadas na sua memória de longo prazo com pronúncia limpa em coreano.
           </p>
 
           <div className="w-full bg-white/[0.05] border border-white/10 rounded-2xl p-4 mb-6 flex justify-around text-center">
@@ -276,7 +250,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
                   ? 'happy'
                   : isListening
                   ? 'listening'
-                  : isAudioActive
+                  : isTTSPlaying
                   ? 'speaking'
                   : 'idle'
               }
@@ -392,7 +366,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
               className="flex flex-col items-center gap-1.5 group"
             >
               <div className="w-16 h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#00C3FF] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
-                <Volume2 className={`w-6 h-6 ${isAudioActive ? 'animate-pulse text-[#00E5FF]' : ''}`} />
+                <Volume2 className={`w-6 h-6 ${isTTSPlaying ? 'animate-pulse text-[#00E5FF]' : ''}`} />
               </div>
               <span className="text-xs font-semibold text-slate-300">
                 Repetir

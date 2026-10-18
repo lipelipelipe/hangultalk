@@ -25,8 +25,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'joeun achimieyo',
     translation: 'Bom dia',
     wordSlots: ['좋은', '아침이에요'],
-    audioFile: '/audio/phrase_1.wav',
-    slowAudioFile: '/audio/phrase_1_slow.wav',
     grammar: {
       title: 'Cumprimento Matinal em Coreano',
       explanation: 'Expressão calorosa e educada para desejar bom dia a amigos, colegas de trabalho e pessoas conhecidas.',
@@ -44,7 +42,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'mul',
     translation: 'Água',
     wordSlots: ['물'],
-    audioFile: '/audio/phrase_2.wav',
     grammar: {
       title: 'Vocabulário Essencial de Sobrevivência',
       explanation: 'A palavra "물" (mul) é uma das mais importantes na Coreia. O som final "ㄹ" tem a língua no céu da boca.',
@@ -60,8 +57,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'mul juseyo',
     translation: 'Água, por favor',
     wordSlots: ['물', '주세요'],
-    audioFile: '/audio/phrase_3.wav',
-    slowAudioFile: '/audio/phrase_3_slow.wav',
     grammar: {
       title: 'Pedindo Coisas com Educação',
       explanation: 'Adicionar "주세요" (juseyo) após qualquer objeto transforma a frase em um pedido polido ("Dê-me / Por favor").',
@@ -78,8 +73,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'Joeun achimieyo. Mul juseyo.',
     translation: 'Bom dia. Água, por favor.',
     wordSlots: ['좋은', '아침이에요.', '물', '주세요.'],
-    audioFile: '/audio/phrase_4.wav',
-    slowAudioFile: '/audio/phrase_4_slow.wav',
     grammar: {
       title: 'Frase Composta Acumulativa',
       explanation: 'Aqui combinamos a saudação matinal que aprendemos com o pedido de água em uma sequência natural do dia a dia.',
@@ -96,7 +89,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'gamsahamnida',
     translation: 'Muito obrigado',
     wordSlots: ['감사합니다'],
-    audioFile: '/audio/phrase_5.wav',
     grammar: {
       title: 'Agradecimento Formal e Respeitoso',
       explanation: 'A forma mais clássica e respeitosa de agradecer na Coreia. A letra ㅂ soa como "m" antes de 니다 ("gam-sa-ham-ni-da").',
@@ -113,8 +105,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'keopi han jan juseyo',
     translation: 'Um café, por favor',
     wordSlots: ['커피', '한 잔', '주세요'],
-    audioFile: '/audio/phrase_6.wav',
-    slowAudioFile: '/audio/phrase_6_slow.wav',
     grammar: {
       title: 'Contadores e Pedidos em Cafeterias',
       explanation: 'Em coreano, bebidas utilizam o contador "잔" (jan - copo/xícara) precedido pelo número nativo "한" (1).',
@@ -132,7 +122,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'annyeonghaseyo',
     translation: 'Olá / Tudo bem',
     wordSlots: ['안녕하세요'],
-    audioFile: '/audio/phrase_7.wav',
     grammar: {
       title: 'O Cumprimento Universal da Coreia',
       explanation: 'Literalmente significa "Você está em paz?". É o cumprimento mais indispensável da língua coreana.',
@@ -149,7 +138,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'mannaseo bangawoyo',
     translation: 'Prazer em conhecer você',
     wordSlots: ['만나서', '반가워요'],
-    audioFile: '/audio/phrase_8.wav',
     grammar: {
       title: 'Expressando Alegria ao Conhecer Alguém',
       explanation: 'Usado quando você é apresentado a alguém pela primeira vez.',
@@ -166,7 +154,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'igeo eolmayeyo?',
     translation: 'Quanto custa isto?',
     wordSlots: ['이거', '얼마예요?'],
-    audioFile: '/audio/phrase_9.wav',
     grammar: {
       title: 'Compras e Preços na Coreia',
       explanation: 'A frase de sobrevivência número 1 para fazer compras nos mercados de rua de Seul.',
@@ -183,7 +170,6 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
     romanization: 'masitge deuseyo',
     translation: 'Bom apetite',
     wordSlots: ['맛있게', '드세요'],
-    audioFile: '/audio/phrase_10.wav',
     grammar: {
       title: 'Desejando uma Boa Refeição',
       explanation: 'Literalmente significa "Coma deliciosamente". É dito a amigos e clientes antes de comer.',
