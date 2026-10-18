@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Pause,
@@ -11,7 +11,8 @@ import {
   Check,
   ArrowRight,
   RotateCcw,
-  Trophy
+  Trophy,
+  Sparkles
 } from 'lucide-react';
 import { SRSCard, SRS_LESSON_CARDS } from '@/lib/srs-learning-data';
 import { FalouMascot } from '@/components/falou-mascot';
@@ -22,7 +23,7 @@ import { useKoreanTTS } from '@/hooks/use-korean-tts';
 
 interface FalouLessonViewProps {
   onCompleteLesson: (xp: number) => void;
-  onExit: () => void;
+  onExit?: () => void;
 }
 
 type LessonPhase = 'intro' | 'recall' | 'retry' | 'success';
@@ -31,7 +32,6 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   onCompleteLesson,
   onExit,
 }) => {
-  // Queue of cards (SRS queue: if user fails or taps "Não lembro", card is re-inserted)
   const [queue, setQueue] = useState<SRSCard[]>([...SRS_LESSON_CARDS]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [phase, setPhase] = useState<LessonPhase>('intro');
@@ -39,6 +39,9 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   const [isGrammarOpen, setIsGrammarOpen] = useState(false);
   const [lessonFinished, setLessonFinished] = useState(false);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
+  const [isPlayingStudioAudio, setIsPlayingStudioAudio] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentCard: SRSCard = queue[currentIndex] || SRS_LESSON_CARDS[0];
 
@@ -50,22 +53,50 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     resetTranscript,
   } = useSpeechRecognition('ko-KR');
 
-  const { speak, isPlaying } = useKoreanTTS();
+  const { speak, isPlaying: isTTSPlaying } = useKoreanTTS();
 
   const progressPercent = Math.min(
     100,
     Math.round(((SRS_LESSON_CARDS.length - queue.length + currentIndex) / SRS_LESSON_CARDS.length) * 100)
   );
 
+  // Play studio-quality audio with fallback
+  const playCardAudio = React.useCallback((slow: boolean = false) => {
+    const file = slow ? (currentCard.slowAudioFile || currentCard.audioFile) : currentCard.audioFile;
+
+    if (file) {
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+      const audio = new Audio(file);
+      audioRef.current = audio;
+      setIsPlayingStudioAudio(true);
+      if (slow && !currentCard.slowAudioFile) {
+        audio.playbackRate = 0.75;
+      }
+      audio
+        .play()
+        .then(() => {
+          audio.onended = () => setIsPlayingStudioAudio(false);
+        })
+        .catch(() => {
+          setIsPlayingStudioAudio(false);
+          speak(currentCard.hangul, slow ? 0.75 : 1.0);
+        });
+    } else {
+      speak(currentCard.hangul, slow ? 0.75 : 1.0);
+    }
+  }, [currentCard.audioFile, currentCard.slowAudioFile, currentCard.hangul, speak]);
+
   // Play audio when entering a new card in 'intro' phase
   useEffect(() => {
     if (phase === 'intro' && currentCard) {
       const timer = setTimeout(() => {
-        speak(currentCard.hangul, 1.0);
+        playCardAudio(false);
       }, 400);
       return () => clearTimeout(timer);
     }
-  }, [currentIndex, phase, currentCard, speak]);
+  }, [currentIndex, phase, currentCard, playCardAudio]);
 
   // Clean Hangul string for comparison
   const cleanTarget = useMemo(
@@ -125,7 +156,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     });
 
     // Speak audio so the user hears it again
-    speak(currentCard.hangul, 0.75);
+    playCardAudio(true);
 
     // Switch to retry phase so they can try again with visual guide
     setTimeout(() => {
@@ -167,6 +198,8 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     }
   };
 
+  const isAudioActive = isPlayingStudioAudio || isTTSPlaying;
+
   return (
     <div className="relative min-h-screen bg-[#0F1423] text-white flex flex-col justify-between select-none overflow-x-hidden font-sans">
       {/* Top Bar: Progress Bar & Pause Button */}
@@ -182,13 +215,15 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
         </div>
 
         {/* Pause Button */}
-        <button
-          onClick={onExit}
-          aria-label="Pausar lição"
-          className="w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-slate-300 flex items-center justify-center transition active:scale-95"
-        >
-          <Pause className="w-4 h-4" />
-        </button>
+        {onExit && (
+          <button
+            onClick={onExit}
+            aria-label="Pausar lição"
+            className="w-10 h-10 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-slate-300 flex items-center justify-center transition active:scale-95"
+          >
+            <Pause className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {/* Finished Screen */}
@@ -202,7 +237,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             대박! Memória Consolidada!
           </h2>
           <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            Você completou a sequência de <strong>Repetição Espaçada (SRS)</strong>! Essas frases foram transferidas da sua memória de curto prazo para a memória de longo prazo.
+            Você completou a sequência de <strong>Repetição Espaçada (SRS)</strong>! As 10 frases foram fixadas na sua memória de longo prazo com áudio nativo de estúdio.
           </p>
 
           <div className="w-full bg-white/[0.05] border border-white/10 rounded-2xl p-4 mb-6 flex justify-around text-center">
@@ -218,10 +253,15 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
           </div>
 
           <button
-            onClick={onExit}
+            onClick={() => {
+              setLessonFinished(false);
+              setCurrentIndex(0);
+              setQueue([...SRS_LESSON_CARDS]);
+              setPhase('intro');
+            }}
             className="w-full py-4 rounded-2xl bg-[#00C3FF] text-slate-950 font-black text-sm hover:bg-[#00b4eb] active:scale-95 transition shadow-lg shadow-cyan-500/25"
           >
-            Concluir Lição
+            Treinar Novamente
           </button>
         </div>
       ) : (
@@ -236,7 +276,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
                   ? 'happy'
                   : isListening
                   ? 'listening'
-                  : isPlaying
+                  : isAudioActive
                   ? 'speaking'
                   : 'idle'
               }
@@ -348,11 +388,11 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
           <div className="flex items-center justify-center gap-6 my-4">
             {/* Repetir Button (Audio play) */}
             <button
-              onClick={() => speak(currentCard.hangul, 1.0)}
+              onClick={() => playCardAudio(false)}
               className="flex flex-col items-center gap-1.5 group"
             >
               <div className="w-16 h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#00C3FF] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
-                <Volume2 className={`w-6 h-6 ${isPlaying ? 'animate-pulse text-[#00E5FF]' : ''}`} />
+                <Volume2 className={`w-6 h-6 ${isAudioActive ? 'animate-pulse text-[#00E5FF]' : ''}`} />
               </div>
               <span className="text-xs font-semibold text-slate-300">
                 Repetir
