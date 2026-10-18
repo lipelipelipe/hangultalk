@@ -14,6 +14,9 @@ import {
   Trophy,
   Layers,
   BarChart3,
+  Brain,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { CurriculumCard, getLevelCurriculumCards, LEVELS } from '@/lib/korean-curriculum';
 import { FalouMascot } from '@/components/falou-mascot';
@@ -30,7 +33,10 @@ interface FalouLessonViewProps {
   initialLevel?: number;
 }
 
-type LessonPhase = 'intro' | 'recall' | 'retry' | 'success';
+// intro: seeing Hangul + audio + repeating
+// recall: Hangul is 100% HIDDEN, only PT-BR subtitle is shown, testing short-term memory
+// retry: user asked for help after forgetting
+type LessonMode = 'intro' | 'recall' | 'retry';
 
 export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   onCompleteLesson,
@@ -41,7 +47,10 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   const [level, setLevel] = useState<number>(initialLevel);
   const [queue, setQueue] = useState<CurriculumCard[]>(() => getLevelCurriculumCards(initialLevel));
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [phase, setPhase] = useState<LessonPhase>('intro');
+
+  // Core SRS step state: intro (learning) -> recall (testing memory without Hangul)
+  const [mode, setMode] = useState<LessonMode>('intro');
+  const [isSuccess, setIsSuccess] = useState(false);
   const [revealedHint, setRevealedHint] = useState(false);
   const [isGrammarOpen, setIsGrammarOpen] = useState(false);
   const [isLevelModalOpen, setIsLevelModalOpen] = useState(false);
@@ -49,7 +58,9 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   const [totalXpEarned, setTotalXpEarned] = useState(0);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
 
+  // Single shared audio element for iOS Safari compatibility
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUnlockedRef = useRef<boolean>(false);
 
   const currentCard: CurriculumCard = queue[currentIndex] || queue[0];
 
@@ -63,67 +74,111 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
   const { speak, isPlaying: isTTSPlaying } = useKoreanTTS();
 
+  /**
+   * Unlock iOS Safari AudioContext on first user interaction.
+   * iOS blocks audio playback unless triggered by or initialized during a user gesture.
+   */
+  const unlockAudioForIOS = useCallback(() => {
+    if (audioUnlockedRef.current) return;
+    try {
+      if (!audioRef.current && typeof window !== 'undefined') {
+        const audio = new Audio();
+        audio.preload = 'auto';
+        audioRef.current = audio;
+      }
+      audioUnlockedRef.current = true;
+    } catch {}
+  }, []);
+
+  /**
+   * Universal Bulletproof Audio Player for iPhone (iOS Safari & PWA):
+   * 1. Try our Next.js /api/tts endpoint (has memory cache)
+   * 2. If network/server fails, try direct Google TTS Korean audio stream
+   * 3. If audio tag fails, fallback to Web Speech API
+   */
+  const playCardAudio = useCallback(
+    (slow: boolean = false) => {
+      unlockAudioForIOS();
+
+      if (!currentCard?.hangul) return;
+      const textToSpeak = currentCard.hangul;
+
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      setIsPlayingAudio(true);
+
+      const audio = audioRef.current || new Audio();
+      audioRef.current = audio;
+
+      // Rate handling for slow audio
+      audio.playbackRate = slow ? 0.75 : 1.0;
+
+      // 1. Primary: /api/tts endpoint
+      const primaryUrl = `/api/tts?text=${encodeURIComponent(textToSpeak)}&slow=${slow ? 'true' : 'false'}`;
+      audio.src = primaryUrl;
+
+      const playPromise = audio.play();
+
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            audio.onended = () => setIsPlayingAudio(false);
+          })
+          .catch(() => {
+            // 2. Direct Fallback: Google Translate TTS stream directly in browser
+            const fallbackUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(textToSpeak)}&tl=ko&client=tw-ob`;
+            const directAudio = new Audio(fallbackUrl);
+            directAudio.playbackRate = slow ? 0.75 : 1.0;
+            audioRef.current = directAudio;
+
+            directAudio
+              .play()
+              .then(() => {
+                directAudio.onended = () => setIsPlayingAudio(false);
+              })
+              .catch(() => {
+                // 3. Fallback to client Web Speech API
+                setIsPlayingAudio(false);
+                speak(textToSpeak, slow ? 0.6 : 0.85);
+              });
+          });
+      }
+    },
+    [currentCard?.hangul, speak, unlockAudioForIOS]
+  );
+
+  // Auto-play audio when starting an intro card (if user already interacted)
+  useEffect(() => {
+    if (mode === 'intro' && !isSuccess && currentCard && audioUnlockedRef.current) {
+      const timer = setTimeout(() => {
+        playCardAudio(false);
+      }, 350);
+      return () => clearTimeout(timer);
+    }
+  }, [currentIndex, mode, isSuccess, currentCard, playCardAudio]);
+
   // Switch curriculum when level changes
   const handleSelectLevel = (newLevel: number) => {
     setLevel(newLevel);
     const newQueue = getLevelCurriculumCards(newLevel);
     setQueue(newQueue);
     setCurrentIndex(0);
-    setPhase('intro');
+    setMode('intro');
+    setIsSuccess(false);
     resetTranscript();
   };
 
   const progressPercent = Math.min(
     100,
-    Math.round(((queue.length - (queue.length - currentIndex)) / queue.length) * 100)
+    Math.round(((currentIndex) / queue.length) * 100)
   );
 
   /**
-   * Online dynamic audio synthesis: zero manual saving needed.
-   * Plays from /api/tts endpoint with automatic in-memory/disk caching for 0ms latency.
-   * Fallback to Web Speech API if necessary.
-   */
-  const playCardAudio = useCallback(
-    (slow: boolean = false) => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-
-      setIsPlayingAudio(true);
-      const textToSpeak = currentCard.hangul;
-      const ttsUrl = `/api/tts?text=${encodeURIComponent(textToSpeak)}&slow=${slow ? 'true' : 'false'}`;
-
-      const audio = new Audio(ttsUrl);
-      audioRef.current = audio;
-
-      audio
-        .play()
-        .then(() => {
-          audio.onended = () => setIsPlayingAudio(false);
-        })
-        .catch(() => {
-          // Graceful fallback to client Web Speech API synthesis
-          setIsPlayingAudio(false);
-          speak(textToSpeak, slow ? 0.6 : 0.85);
-        });
-    },
-    [currentCard?.hangul, speak]
-  );
-
-  // Auto-play audio when entering a new card in 'intro' phase
-  useEffect(() => {
-    if (phase === 'intro' && currentCard) {
-      const timer = setTimeout(() => {
-        playCardAudio(false);
-      }, 400);
-      return () => clearTimeout(timer);
-    }
-  }, [currentIndex, phase, currentCard, playCardAudio]);
-
-  /**
-   * ROBUST WORD & SYLLABLE MATCHING ALGORITHM:
-   * Fixes the bug where only the first half of the sentence was colored.
-   * Matches word tokens and syllables independently from transcript.
+   * ROBUST WORD & SYLLABLE MATCHING:
+   * Splits sentence into word tokens. Each token changes to vibrant green (#22C55E)
+   * independently as spoken in the microphone.
    */
   const wordTokens = useMemo(() => {
     if (!currentCard?.hangul) return [];
@@ -139,7 +194,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
   // Determine matched status per word token
   const matchedWordsStatus = useMemo(() => {
-    if (phase === 'success') {
+    if (isSuccess) {
       return wordTokens.map(() => true);
     }
     if (!cleanSpoken) {
@@ -148,46 +203,45 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
     return wordTokens.map((token) => {
       if (!token.clean) return true;
-      // Exact substring match in spoken transcript
       if (cleanSpoken.includes(token.clean)) return true;
 
-      // Partial syllable match for words >= 2 syllables (e.g. 70% threshold)
       const cleanChars = Array.from(token.clean);
       let matchedChars = 0;
       for (const ch of cleanChars) {
         if (cleanSpoken.includes(ch)) matchedChars++;
       }
-      return cleanChars.length > 0 && matchedChars / cleanChars.length >= 0.65;
+      return cleanChars.length > 0 && matchedChars / cleanChars.length >= 0.6;
     });
-  }, [wordTokens, cleanSpoken, phase]);
+  }, [wordTokens, cleanSpoken, isSuccess]);
 
   const matchedWordsCount = matchedWordsStatus.filter(Boolean).length;
   const matchRatio = wordTokens.length > 0 ? matchedWordsCount / wordTokens.length : 0;
 
-  // Trigger success once threshold (>= 60%) is reached
+  // Trigger success when spoken speech matches >= 60% of words
   useEffect(() => {
-    if (matchRatio >= 0.6 && phase !== 'success' && isListening) {
+    if (matchRatio >= 0.6 && !isSuccess && isListening) {
       stopListening();
       soundEffects.playSuccess();
 
       // Record learned stats in localStorage for PhD Memory tracking
       try {
         const curLearned = parseInt(localStorage.getItem('hangultalk_learned_words') || '14', 10);
-        const curPhrases = parseInt(localStorage.getItem('hangultalk_practiced_phrases') || '38', 10);
-        localStorage.setItem('hangultalk_learned_words', String(curLearned + 1));
+        const curPhrases = parseInt(localStorage.getItem('hangultalk_practiced_phrases') || '42', 10);
+        localStorage.setItem('hangultalk_learned_words', String(curLearned + (mode === 'recall' ? 1 : 0)));
         localStorage.setItem('hangultalk_practiced_phrases', String(curPhrases + 1));
       } catch {}
 
       const timer = setTimeout(() => {
-        setPhase('success');
-        setTotalXpEarned((prev) => prev + 15);
-      }, 80);
+        setIsSuccess(true);
+        setTotalXpEarned((prev) => prev + (mode === 'recall' ? 20 : 10));
+      }, 60);
       return () => clearTimeout(timer);
     }
-  }, [matchRatio, phase, isListening, stopListening]);
+  }, [matchRatio, isSuccess, isListening, stopListening, mode]);
 
   // Toggle microphone dictation
   const handleToggleMic = () => {
+    unlockAudioForIOS();
     if (isListening) {
       stopListening();
     } else {
@@ -196,40 +250,46 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     }
   };
 
-  // Handle "Não lembro" button click (Scientific SRS decay trigger)
+  // Handle "Não lembro" button click during Recall challenge
   const handleIDontRemember = () => {
+    unlockAudioForIOS();
     stopListening();
     soundEffects.playReviewHint();
     setRevealedHint(true);
+    setMode('retry');
 
-    // Re-insert current card at the end of queue for reinforcement
+    // Re-insert current card at the end of queue for scientific reinforcement
     setQueue((prevQueue) => {
       const updated = [...prevQueue];
       updated.push({ ...currentCard });
       return updated;
     });
 
-    // Speak audio slowly so user hears phonemes clearly
+    // Speak audio slowly (0.75x) so user hears phonemes clearly
     playCardAudio(true);
-
-    setTimeout(() => {
-      setPhase('retry');
-    }, 1200);
   };
 
-  // Advance to next step / phase in the SRS loop
+  /**
+   * Advance to next step in the Falou SRS two-step loop:
+   * Step 1: Intro (Seeing Hangul + Repeating) -> Success
+   * -> Tap "Continuar"
+   * -> Step 2: Recall (Hangul HIDDEN, only PT-BR subtitle, tests if user memorized!) -> Success
+   * -> Tap "Próxima Palavra" -> moves to next word in queue!
+   */
   const handleContinue = () => {
+    unlockAudioForIOS();
     resetTranscript();
+    setIsSuccess(false);
     setRevealedHint(false);
 
-    if (phase === 'intro') {
-      // Step 2: Now test active recall without showing the Hangul!
-      setPhase('recall');
+    if (mode === 'intro') {
+      // Step 2: Now test active recall without showing the Korean text!
+      setMode('recall');
     } else {
-      // Completed the active recall! Move to next card
+      // Completed the active recall! Move to next card in queue
       if (currentIndex < queue.length - 1) {
         setCurrentIndex((prev) => prev + 1);
-        setPhase('intro');
+        setMode('intro');
       } else {
         // Lesson completely mastered
         setLessonFinished(true);
@@ -240,11 +300,15 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
   // Skip current card
   const handleSkip = () => {
+    unlockAudioForIOS();
     stopListening();
     resetTranscript();
+    setIsSuccess(false);
+    setRevealedHint(false);
+
     if (currentIndex < queue.length - 1) {
       setCurrentIndex((prev) => prev + 1);
-      setPhase('intro');
+      setMode('intro');
     } else {
       setLessonFinished(true);
       onCompleteLesson(totalXpEarned + 20);
@@ -260,7 +324,10 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
       <div className="w-full max-w-md mx-auto px-5 pt-4 pb-2 flex items-center justify-between gap-3">
         {/* Level Switcher Pill */}
         <button
-          onClick={() => setIsLevelModalOpen(true)}
+          onClick={() => {
+            unlockAudioForIOS();
+            setIsLevelModalOpen(true);
+          }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.08] hover:bg-white/[0.15] border border-white/10 text-xs font-black transition active:scale-95 shrink-0"
         >
           <span>{currentLevelInfo.badgeEmoji}</span>
@@ -281,7 +348,10 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
         {/* Stats Button */}
         {onOpenStats && (
           <button
-            onClick={onOpenStats}
+            onClick={() => {
+              unlockAudioForIOS();
+              onOpenStats();
+            }}
             aria-label="Ver estatísticas de memória"
             className="w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-slate-300 flex items-center justify-center transition active:scale-95 shrink-0"
           >
@@ -292,7 +362,10 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
         {/* Pause Button */}
         {onExit && (
           <button
-            onClick={onExit}
+            onClick={() => {
+              unlockAudioForIOS();
+              onExit();
+            }}
             aria-label="Pausar lição"
             className="w-9 h-9 rounded-full bg-white/[0.08] hover:bg-white/[0.15] text-slate-300 flex items-center justify-center transition active:scale-95 shrink-0"
           >
@@ -310,7 +383,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
           <h2 className="text-2xl font-black mb-2">대박! Memória Consolidada!</h2>
           <p className="text-sm text-slate-300 leading-relaxed mb-6">
-            Você concluiu a rodada de <strong>Repetição Espaçada (SRS)</strong> do {currentLevelInfo.title}! As palavras e suas conexões foram fixadas na memória de curto prazo.
+            Você completou a rodada de <strong>Repetição Espaçada (SRS)</strong> do {currentLevelInfo.title}! As palavras e conexões foram fixadas na sua memória de curto prazo.
           </p>
 
           <div className="w-full bg-white/[0.05] border border-white/10 rounded-2xl p-4 mb-6 flex justify-around text-center">
@@ -320,7 +393,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             </div>
             <div className="w-px bg-white/10" />
             <div>
-              <span className="text-xs text-slate-400 block">Exercícios Feitos</span>
+              <span className="text-xs text-slate-400 block">Palavras Fixadas</span>
               <span className="text-xl font-black text-[#22C55E]">{queue.length}</span>
             </div>
           </div>
@@ -328,10 +401,12 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
           <div className="w-full space-y-3">
             <button
               onClick={() => {
+                unlockAudioForIOS();
                 setLessonFinished(false);
                 setCurrentIndex(0);
                 setQueue(getLevelCurriculumCards(level));
-                setPhase('intro');
+                setMode('intro');
+                setIsSuccess(false);
               }}
               className="w-full py-4 rounded-2xl bg-[#00C3FF] text-slate-950 font-black text-sm hover:bg-[#00b4eb] active:scale-95 transition shadow-lg shadow-cyan-500/25"
             >
@@ -355,7 +430,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
           <div className="flex items-start gap-3 my-2">
             <FalouMascot
               state={
-                phase === 'success'
+                isSuccess
                   ? 'happy'
                   : isListening
                   ? 'listening'
@@ -369,26 +444,26 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             {/* Speech Bubble */}
             <div className="flex-1 bg-[#1A2234] border border-white/[0.08] rounded-3xl rounded-tl-sm p-4 shadow-md relative mt-4">
               <div className="flex items-center gap-1.5 mb-1">
-                {phase === 'intro' ? (
+                {mode === 'intro' ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black tracking-wider uppercase text-[#F59E0B]">
                     <span className="w-2 h-2 rounded-full bg-[#F59E0B]" />
-                    {currentCard.type === 'word' ? 'NOVA PALAVRA' : 'NOVA FRASE COMBINADA'}
+                    {currentCard.type === 'word' ? '1. APRENDER PALAVRA' : '1. APRENDER FRASE'}
                   </span>
-                ) : phase === 'recall' ? (
+                ) : mode === 'recall' ? (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black tracking-wider uppercase text-[#00C3FF]">
-                    <span className="w-2 h-2 rounded-full bg-[#00C3FF]" />
-                    DESAFIO DE MEMÓRIA (RECALL)
+                    <Brain className="w-3.5 h-3.5 text-[#00C3FF]" />
+                    2. DESAFIO DE MEMÓRIA (SEM O COREANO)
                   </span>
                 ) : (
                   <span className="inline-flex items-center gap-1 text-[11px] font-black tracking-wider uppercase text-[#F97316]">
                     <RotateCcw className="w-3 h-3" />
-                    TENTE NOVAMENTE
+                    TENTE NOVAMENTE COM DICA
                   </span>
                 )}
               </div>
 
               <h3 className="text-base font-bold text-white">
-                {phase === 'recall' ? 'Traduza esta frase:' : 'Fale esta frase:'}
+                {mode === 'recall' ? 'Como se diz em coreano?' : 'Fale esta frase em coreano:'}
               </h3>
             </div>
           </div>
@@ -398,49 +473,62 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              key={currentCard.id}
+              key={currentCard.id + mode}
               className="w-16 h-16 rounded-3xl bg-white/[0.05] border border-white/10 flex items-center justify-center text-3xl shadow-inner shadow-white/5"
             >
               {currentCard.emoji || '🇰🇷'}
             </motion.div>
           </div>
 
-          {/* Center: Phrase Display Area with FIX for character & word coloring */}
+          {/* Center: Phrase Display Area */}
           <div className="flex-1 flex flex-col items-center justify-center text-center my-2 py-2">
-            {phase === 'recall' && !revealedHint ? (
-              /* Phase 2: Active Recall (Ebbinghaus Forgetting Curve test) */
+            {mode === 'recall' && !revealedHint ? (
+              /* =======================================================
+                 PASSO 2: RECALL ATIVO (MEMÓRIA PURA)
+                 O coreano e a romanização somem COMPLETAMENTE!
+                 Fica APENAS a legenda em Português com slots vazios.
+                 ======================================================= */
               <div className="space-y-4">
+                {/* Legenda em Português em Destaque */}
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-                  {currentCard.translation}.
+                  &ldquo;{currentCard.translation}&rdquo;
                 </h2>
 
-                {/* Blank Slots Representing the Korean Words */}
+                {/* Slots vazios que se preenchem em verde conforme o usuário fala de cabeça */}
                 <div className="flex flex-wrap items-center justify-center gap-2 pt-2">
                   {currentCard.wordSlots.map((slot, i) => (
                     <div
                       key={i}
-                      className="min-w-[60px] px-3.5 py-2.5 bg-[#1C2538] border border-white/10 rounded-xl flex items-center justify-center"
+                      className="min-w-[64px] px-3.5 py-2.5 bg-[#1C2538] border border-white/10 rounded-xl flex items-center justify-center transition-all"
                     >
-                      {matchedWordsCount > 0 ? (
-                        <span className="text-base font-black text-[#22C55E]">{slot}</span>
+                      {matchedWordsCount > 0 || isSuccess ? (
+                        <span className="text-base font-black text-[#22C55E] drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]">
+                          {slot}
+                        </span>
                       ) : (
-                        <span className="text-sm font-bold text-slate-500">_ _ _</span>
+                        <span className="text-sm font-bold text-slate-500 tracking-widest">
+                          _ _ _
+                        </span>
                       )}
                     </div>
                   ))}
                 </div>
 
-                <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                  Resgate a palavra da sua memória de curto prazo e fale no microfone!
-                </p>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-[#00C3FF]">
+                  <EyeOff className="w-3.5 h-3.5" />
+                  <span>Escrita em coreano oculta para testar sua memória!</span>
+                </div>
               </div>
             ) : (
-              /* Phase 1 & Retry: Full Visual Guide (Hangul colored per-word + Romanization + Translation) */
+              /* =======================================================
+                 PASSO 1 & RETRY: GUIA VISUAL COMPLETO
+                 Hangul colorido por palavra + Romanização + Tradução PT
+                 ======================================================= */
               <div className="space-y-2.5">
                 {/* Large Korean Hangul with Live Green Animation per WORD TOKEN */}
                 <h2 className="text-2xl sm:text-3xl font-black tracking-normal leading-snug flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
                   {wordTokens.map((token, wordIdx) => {
-                    const isMatched = matchedWordsStatus[wordIdx] || phase === 'success';
+                    const isMatched = matchedWordsStatus[wordIdx] || isSuccess;
 
                     return (
                       <motion.span
@@ -474,7 +562,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
           {/* Action Buttons Row */}
           <div className="flex items-center justify-center gap-4 sm:gap-6 my-3">
-            {/* Repetir Button (Normal speed via dynamic online API) */}
+            {/* Repetir Button (Normal speed) */}
             <button
               onClick={() => playCardAudio(false)}
               className="flex flex-col items-center gap-1.5 group"
@@ -498,7 +586,10 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
             {/* Gramática Button */}
             <button
-              onClick={() => setIsGrammarOpen(true)}
+              onClick={() => {
+                unlockAudioForIOS();
+                setIsGrammarOpen(true);
+              }}
               className="flex flex-col items-center gap-1.5 group"
             >
               <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#60A5FA] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
@@ -508,7 +599,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
             </button>
 
             {/* Pular OU Não Lembro Button */}
-            {phase === 'recall' ? (
+            {mode === 'recall' ? (
               <button
                 onClick={handleIDontRemember}
                 className="flex flex-col items-center gap-1.5 group"
@@ -548,16 +639,18 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
 
             <p className="text-[11px] text-center text-slate-400 mt-2">
               {isListening
-                ? 'Dite a frase em coreano no microfone do iPhone'
+                ? 'Dite em coreano no microfone do iPhone'
                 : transcript
                 ? `Ouvido: "${transcript}"`
+                : mode === 'recall'
+                ? 'Resgate a palavra da memória e fale em coreano!'
                 : 'Toque para falar e veja as palavras ficarem verdes!'}
             </p>
           </div>
 
           {/* Success Bottom Sheet Banner */}
           <AnimatePresence>
-            {phase === 'success' && (
+            {isSuccess && (
               <motion.div
                 initial={{ y: 100, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
@@ -571,18 +664,22 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
                       <Check className="w-7 h-7 stroke-[3]" />
                     </div>
                     <div>
-                      <h4 className="text-base font-black text-white">Excelente! Pronúncia Nativa!</h4>
+                      <h4 className="text-base font-black text-white">
+                        {mode === 'intro' ? 'Excelente! Pronúncia Correta!' : '대박! Memória Consolidada!'}
+                      </h4>
                       <p className="text-xs font-semibold text-[#4ADE80]">
-                        +15 XP · Memória Fixada!
+                        {mode === 'intro'
+                          ? 'Agora vamos ver se você memorizou sem olhar o coreano!'
+                          : '+20 XP · Memória de Curto Prazo Fixada!'}
                       </p>
                     </div>
                   </div>
 
                   <button
                     onClick={handleContinue}
-                    className="py-3 px-6 rounded-2xl bg-[#22C55E] hover:bg-[#1ea34d] text-slate-950 font-black text-sm active:scale-95 transition shadow-lg shadow-emerald-500/30 flex items-center gap-1.5"
+                    className="py-3 px-5 rounded-2xl bg-[#22C55E] hover:bg-[#1ea34d] text-slate-950 font-black text-sm active:scale-95 transition shadow-lg shadow-emerald-500/30 flex items-center gap-1.5 shrink-0"
                   >
-                    <span>Continuar</span>
+                    <span>{mode === 'intro' ? 'Desafio de Memória' : 'Continuar'}</span>
                     <ArrowRight className="w-4 h-4 stroke-[3]" />
                   </button>
                 </div>
