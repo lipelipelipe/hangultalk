@@ -1,35 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { IOSStatusBar } from '@/components/ios-status-bar';
 import { FalouLessonView } from '@/components/falou-lesson-view';
 import { PWAInstallModal } from '@/components/pwa-install-modal';
 import { MicrophonePermissionSheet } from '@/components/microphone-permission-sheet';
-import { Smartphone, HelpCircle, Flame, Sparkles } from 'lucide-react';
+import { MemoryStatsModal } from '@/components/memory-stats-modal';
+import { Smartphone, HelpCircle, Flame, Sparkles, Brain } from 'lucide-react';
 
 export default function HomePage() {
-  const [streak, setStreak] = useState<number>(() => {
-    if (typeof window === 'undefined') return 3;
-    try {
-      const saved = localStorage.getItem('hangultalk_streak');
-      return saved ? parseInt(saved, 10) : 3;
-    } catch {
-      return 3;
-    }
-  });
-
-  const [xp, setXp] = useState<number>(() => {
-    if (typeof window === 'undefined') return 210;
-    try {
-      const saved = localStorage.getItem('hangultalk_xp');
-      return saved ? parseInt(saved, 10) : 210;
-    } catch {
-      return 210;
-    }
-  });
+  const [streak, setStreak] = useState<number>(3);
+  const [xp, setXp] = useState<number>(210);
+  const [learnedWordsCount, setLearnedWordsCount] = useState<number>(14);
+  const [practicedPhrasesCount, setPracticedPhrasesCount] = useState<number>(42);
 
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
   const [isMicSheetOpen, setIsMicSheetOpen] = useState(false);
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedStreak = localStorage.getItem('hangultalk_streak');
+      const savedXp = localStorage.getItem('hangultalk_xp');
+      const savedLearned = localStorage.getItem('hangultalk_learned_words');
+      const savedPhrases = localStorage.getItem('hangultalk_practiced_phrases');
+
+      if (savedStreak) setStreak(parseInt(savedStreak, 10));
+      if (savedXp) setXp(parseInt(savedXp, 10));
+      if (savedLearned) setLearnedWordsCount(parseInt(savedLearned, 10));
+      if (savedPhrases) setPracticedPhrasesCount(parseInt(savedPhrases, 10));
+    } catch {}
+  }, []);
 
   const handleEarnXP = (amount: number) => {
     const nextXp = xp + amount;
@@ -37,6 +38,16 @@ export default function HomePage() {
     try {
       localStorage.setItem('hangultalk_xp', String(nextXp));
       localStorage.setItem('hangultalk_streak', String(streak));
+      setLearnedWordsCount((prev) => {
+        const next = Math.min(100, prev + 2);
+        localStorage.setItem('hangultalk_learned_words', String(next));
+        return next;
+      });
+      setPracticedPhrasesCount((prev) => {
+        const next = Math.min(1000, prev + 5);
+        localStorage.setItem('hangultalk_practiced_phrases', String(next));
+        return next;
+      });
     } catch {}
   };
 
@@ -78,10 +89,20 @@ export default function HomePage() {
               <span>{streak} d</span>
             </div>
 
+            {/* Memory & Stats Trigger Button */}
+            <button
+              onClick={() => setIsStatsModalOpen(true)}
+              aria-label="Abrir estatísticas de memória"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-500/10 hover:bg-cyan-500/20 text-[#00C3FF] text-xs font-bold border border-cyan-500/20 transition active:scale-95"
+            >
+              <Brain className="w-3.5 h-3.5 text-[#00C3FF]" />
+              <span>{learnedWordsCount}/100</span>
+            </button>
+
             {/* XP */}
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-cyan-500/10 text-[#00C3FF] text-xs font-bold border border-cyan-500/20">
-              <Sparkles className="w-3.5 h-3.5 text-[#00C3FF]" />
-              <span>{xp} XP</span>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/5 text-slate-300 text-xs font-bold border border-white/10">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span>{xp}</span>
             </div>
 
             {/* Mic Help Sheet */}
@@ -106,7 +127,10 @@ export default function HomePage() {
 
         {/* Main Falou SRS Experience (100% focused) */}
         <main className="flex-1 w-full flex flex-col">
-          <FalouLessonView onCompleteLesson={handleEarnXP} />
+          <FalouLessonView
+            onCompleteLesson={handleEarnXP}
+            onOpenStats={() => setIsStatsModalOpen(true)}
+          />
         </main>
       </div>
 
@@ -120,6 +144,16 @@ export default function HomePage() {
         isOpen={isMicSheetOpen}
         onClose={() => setIsMicSheetOpen(false)}
         onTestPermission={handleTestMicPermission}
+      />
+
+      <MemoryStatsModal
+        isOpen={isStatsModalOpen}
+        onClose={() => setIsStatsModalOpen(false)}
+        learnedWordsCount={learnedWordsCount}
+        practicedPhrasesCount={practicedPhrasesCount}
+        xp={xp}
+        streak={streak}
+        currentLevel={1}
       />
     </div>
   );
