@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Pause,
@@ -38,6 +38,9 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
   const [isGrammarOpen, setIsGrammarOpen] = useState(false);
   const [lessonFinished, setLessonFinished] = useState(false);
   const [totalXpEarned, setTotalXpEarned] = useState(0);
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const currentCard: SRSCard = queue[currentIndex] || SRS_LESSON_CARDS[0];
 
@@ -56,12 +59,55 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
     Math.round(((SRS_LESSON_CARDS.length - queue.length + currentIndex) / SRS_LESSON_CARDS.length) * 100)
   );
 
-  // Play crisp, pure Korean audio (no English prefixes!)
+  // Play audio: checks for manual mp3/wav first; supports _slow audio or slow playbackRate (0.72x)
   const playCardAudio = useCallback(
     (slow: boolean = false) => {
-      speak(currentCard.hangul, slow ? 0.75 : 1.0);
+      if (audioRef.current) {
+        audioRef.current.pause();
+      }
+
+      const audioId = currentCard.audioId;
+      const normalMp3 = `/audio/${audioId}.mp3`;
+      const slowMp3 = `/audio/${audioId}_slow.mp3`;
+      const targetUrl = slow ? slowMp3 : normalMp3;
+
+      const audio = new Audio(targetUrl);
+      audioRef.current = audio;
+      setIsPlayingAudio(true);
+
+      if (slow) {
+        audio.playbackRate = 0.75;
+      }
+
+      audio
+        .play()
+        .then(() => {
+          audio.onended = () => setIsPlayingAudio(false);
+        })
+        .catch(() => {
+          // If slow audio file failed, try playing normal file slowed down
+          if (slow) {
+            const fallbackAudio = new Audio(normalMp3);
+            fallbackAudio.playbackRate = 0.72;
+            audioRef.current = fallbackAudio;
+            fallbackAudio
+              .play()
+              .then(() => {
+                fallbackAudio.onended = () => setIsPlayingAudio(false);
+              })
+              .catch(() => {
+                setIsPlayingAudio(false);
+                speak(currentCard.hangul, 0.55);
+              });
+            return;
+          }
+
+          setIsPlayingAudio(false);
+          // Fallback to speech synthesis if file not present
+          speak(currentCard.hangul, slow ? 0.55 : 0.75);
+        });
     },
-    [currentCard.hangul, speak]
+    [currentCard.hangul, currentCard.audioId, speak]
   );
 
   // Play audio when entering a new card in 'intro' phase
@@ -131,7 +177,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
       return updated;
     });
 
-    // Speak audio slow and clean so the user hears it again
+    // Speak audio very slowly (0.50x) so the user hears every phoneme clearly
     playCardAudio(true);
 
     // Switch to retry phase so they can try again with visual guide
@@ -173,6 +219,8 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
       onCompleteLesson(totalXpEarned + 20);
     }
   };
+
+  const isAudioActive = isPlayingAudio || isTTSPlaying;
 
   return (
     <div className="relative min-h-screen bg-[#0F1423] text-white flex flex-col justify-between select-none overflow-x-hidden font-sans">
@@ -250,7 +298,7 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
                   ? 'happy'
                   : isListening
                   ? 'listening'
-                  : isTTSPlaying
+                  : isAudioActive
                   ? 'speaking'
                   : 'idle'
               }
@@ -359,17 +407,30 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
           </div>
 
           {/* Action Buttons Row */}
-          <div className="flex items-center justify-center gap-6 my-4">
-            {/* Repetir Button (Audio play) */}
+          <div className="flex items-center justify-center gap-4 sm:gap-6 my-4">
+            {/* Repetir Button (Normal speed) */}
             <button
               onClick={() => playCardAudio(false)}
               className="flex flex-col items-center gap-1.5 group"
             >
-              <div className="w-16 h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#00C3FF] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
-                <Volume2 className={`w-6 h-6 ${isTTSPlaying ? 'animate-pulse text-[#00E5FF]' : ''}`} />
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#00C3FF] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
+                <Volume2 className={`w-6 h-6 ${isAudioActive ? 'animate-pulse text-[#00E5FF]' : ''}`} />
               </div>
               <span className="text-xs font-semibold text-slate-300">
-                Repetir
+                Ouvir
+              </span>
+            </button>
+
+            {/* Lento Button (Slow speed with turtle) */}
+            <button
+              onClick={() => playCardAudio(true)}
+              className="flex flex-col items-center gap-1.5 group"
+            >
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#38BDF8] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
+                <span className="text-xl sm:text-2xl">🐢</span>
+              </div>
+              <span className="text-xs font-semibold text-slate-300">
+                Lento
               </span>
             </button>
 
@@ -378,8 +439,8 @@ export const FalouLessonView: React.FC<FalouLessonViewProps> = ({
               onClick={() => setIsGrammarOpen(true)}
               className="flex flex-col items-center gap-1.5 group"
             >
-              <div className="w-16 h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#60A5FA] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
-                <span className="text-2xl">🐵</span>
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-3xl bg-[#1A2234] border border-white/[0.08] text-[#60A5FA] flex items-center justify-center shadow-md group-hover:bg-[#202b42] active:scale-95 transition">
+                <span className="text-xl sm:text-2xl">🐵</span>
               </div>
               <span className="text-xs font-semibold text-slate-300">
                 Gramática

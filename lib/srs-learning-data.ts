@@ -1,11 +1,10 @@
 export interface SRSCard {
   id: string;
+  audioId: string;
   hangul: string;
   romanization: string;
   translation: string;
   wordSlots: string[];
-  audioFile?: string;
-  slowAudioFile?: string;
   grammar: {
     title: string;
     explanation: string;
@@ -21,6 +20,7 @@ export interface SRSCard {
 export const SRS_LESSON_CARDS: SRSCard[] = [
   {
     id: 'srs-1',
+    audioId: 'phrase_1',
     hangul: '좋은 아침이에요',
     romanization: 'joeun achimieyo',
     translation: 'Bom dia',
@@ -29,22 +29,23 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       title: 'Cumprimento Matinal em Coreano',
       explanation: 'Expressão calorosa e educada para desejar bom dia a amigos, colegas de trabalho e pessoas conhecidas.',
       breakdown: [
-        { korean: '좋은', roman: 'joeun', role: 'Bom / boa (adjetivo que qualifica o substantivo)' },
+        { korean: '좋은', roman: 'joeun', role: 'Bom / boa' },
         { korean: '아침', roman: 'achim', role: 'Manhã / café da manhã' },
-        { korean: '이에요', roman: 'ieyo', role: 'Terminação polida e educada do verbo "ser/estar"' }
+        { korean: '이에요', roman: 'ieyo', role: 'Terminação polida do verbo ser' }
       ]
     },
     difficulty: 'fácil'
   },
   {
     id: 'srs-2',
+    audioId: 'phrase_2',
     hangul: '물',
     romanization: 'mul',
     translation: 'Água',
     wordSlots: ['물'],
     grammar: {
       title: 'Vocabulário Essencial de Sobrevivência',
-      explanation: 'A palavra "물" (mul) é uma das mais importantes na Coreia. O som final "ㄹ" tem a língua no céu da boca.',
+      explanation: 'A palavra "물" (mul) é indispensável na Coreia. O som final "ㄹ" repousa a língua suavemente no céu da boca.',
       breakdown: [
         { korean: '물', roman: 'mul', role: 'Água (substantivo puro)' }
       ]
@@ -53,6 +54,7 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
   },
   {
     id: 'srs-3',
+    audioId: 'phrase_3',
     hangul: '물 주세요',
     romanization: 'mul juseyo',
     translation: 'Água, por favor',
@@ -62,20 +64,21 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       explanation: 'Adicionar "주세요" (juseyo) após qualquer objeto transforma a frase em um pedido polido ("Dê-me / Por favor").',
       breakdown: [
         { korean: '물', roman: 'mul', role: 'Água' },
-        { korean: '주세요', roman: 'juseyo', role: 'Por favor, dê-me (imperativo educado)' }
+        { korean: '주세요', roman: 'juseyo', role: 'Por favor, dê-me' }
       ]
     },
     difficulty: 'fácil'
   },
   {
     id: 'srs-4',
+    audioId: 'phrase_4',
     hangul: '좋은 아침이에요. 물 주세요.',
     romanization: 'Joeun achimieyo. Mul juseyo.',
     translation: 'Bom dia. Água, por favor.',
     wordSlots: ['좋은', '아침이에요.', '물', '주세요.'],
     grammar: {
       title: 'Frase Composta Acumulativa',
-      explanation: 'Aqui combinamos a saudação matinal que aprendemos com o pedido de água em uma sequência natural do dia a dia.',
+      explanation: 'Aqui combinamos a saudação matinal que aprendemos com o pedido de água em uma sequência natural.',
       breakdown: [
         { korean: '좋은 아침이에요', roman: 'joeun achimieyo', role: 'Bom dia' },
         { korean: '물 주세요', roman: 'mul juseyo', role: 'Água, por favor' }
@@ -85,22 +88,24 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
   },
   {
     id: 'srs-5',
+    audioId: 'phrase_5',
     hangul: '감사합니다',
     romanization: 'gamsahamnida',
     translation: 'Muito obrigado',
     wordSlots: ['감사합니다'],
     grammar: {
       title: 'Agradecimento Formal e Respeitoso',
-      explanation: 'A forma mais clássica e respeitosa de agradecer na Coreia. A letra ㅂ soa como "m" antes de 니다 ("gam-sa-ham-ni-da").',
+      explanation: 'A forma mais clássica e respeitosa de agradecer. A letra ㅂ soa como "m" antes de 니다 ("gam-sa-ham-ni-da").',
       breakdown: [
         { korean: '감사', roman: 'gamsa', role: 'Gratidão (raiz Hanja 感謝)' },
-        { korean: '합니다', roman: 'hamnida', role: 'Verbo fazer na terminação formal polida' }
+        { korean: '합니다', roman: 'hamnida', role: 'Verbo fazer na terminação formal' }
       ]
     },
     difficulty: 'fácil'
   },
   {
     id: 'srs-6',
+    audioId: 'phrase_6',
     hangul: '커피 한 잔 주세요',
     romanization: 'keopi han jan juseyo',
     translation: 'Um café, por favor',
@@ -109,7 +114,7 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       title: 'Contadores e Pedidos em Cafeterias',
       explanation: 'Em coreano, bebidas utilizam o contador "잔" (jan - copo/xícara) precedido pelo número nativo "한" (1).',
       breakdown: [
-        { korean: '커피', roman: 'keopi', role: 'Café (empréstimo linguístico)' },
+        { korean: '커피', roman: 'keopi', role: 'Café' },
         { korean: '한 잔', roman: 'han jan', role: 'Um copo / uma xícara' },
         { korean: '주세요', roman: 'juseyo', role: 'Por favor, me dê' }
       ]
@@ -118,6 +123,7 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
   },
   {
     id: 'srs-7',
+    audioId: 'phrase_7',
     hangul: '안녕하세요',
     romanization: 'annyeonghaseyo',
     translation: 'Olá / Tudo bem',
@@ -126,14 +132,15 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       title: 'O Cumprimento Universal da Coreia',
       explanation: 'Literalmente significa "Você está em paz?". É o cumprimento mais indispensável da língua coreana.',
       breakdown: [
-        { korean: '안녕', roman: 'annyeong', role: 'Paz / bem-estar (Hanja 安寧)' },
-        { korean: '하세요', roman: 'haseyo', role: 'Você está fazendo? (honorífico educado)' }
+        { korean: '안녕', roman: 'annyeong', role: 'Paz / bem-estar' },
+        { korean: '하세요', roman: 'haseyo', role: 'Você está fazendo?' }
       ]
     },
     difficulty: 'fácil'
   },
   {
     id: 'srs-8',
+    audioId: 'phrase_8',
     hangul: '만나서 반가워요',
     romanization: 'mannaseo bangawoyo',
     translation: 'Prazer em conhecer você',
@@ -142,30 +149,32 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       title: 'Expressando Alegria ao Conhecer Alguém',
       explanation: 'Usado quando você é apresentado a alguém pela primeira vez.',
       breakdown: [
-        { korean: '만나서', roman: 'mannaseo', role: 'Porque te encontrei / ao encontrar' },
-        { korean: '반가워요', roman: 'bangawoyo', role: 'Fico feliz / é um prazer' }
+        { korean: '만나서', roman: 'mannaseo', role: 'Ao te encontrar' },
+        { korean: '반가워요', roman: 'bangawoyo', role: 'Fico feliz' }
       ]
     },
     difficulty: 'médio'
   },
   {
     id: 'srs-9',
+    audioId: 'phrase_9',
     hangul: '이거 얼마예요?',
     romanization: 'igeo eolmayeyo?',
     translation: 'Quanto custa isto?',
     wordSlots: ['이거', '얼마예요?'],
     grammar: {
       title: 'Compras e Preços na Coreia',
-      explanation: 'A frase de sobrevivência número 1 para fazer compras nos mercados de rua de Seul.',
+      explanation: 'A frase de sobrevivência número 1 para fazer compras nos mercados de Seul.',
       breakdown: [
-        { korean: '이거', roman: 'igeo', role: 'Isto / esta coisa' },
-        { korean: '얼마예요?', roman: 'eolmayeyo?', role: 'Quanto é? (pergunta de valor)' }
+        { korean: '이거', roman: 'igeo', role: 'Isto' },
+        { korean: '얼마예요?', roman: 'eolmayeyo?', role: 'Quanto é?' }
       ]
     },
     difficulty: 'médio'
   },
   {
     id: 'srs-10',
+    audioId: 'phrase_10',
     hangul: '맛있게 드세요',
     romanization: 'masitge deuseyo',
     translation: 'Bom apetite',
@@ -175,7 +184,7 @@ export const SRS_LESSON_CARDS: SRSCard[] = [
       explanation: 'Literalmente significa "Coma deliciosamente". É dito a amigos e clientes antes de comer.',
       breakdown: [
         { korean: '맛있게', roman: 'masitge', role: 'Deliciosamente' },
-        { korean: '드세요', roman: 'deuseyo', role: 'Coma / sirva-se (verbo honorífico)' }
+        { korean: '드세요', roman: 'deuseyo', role: 'Coma / sirva-se' }
       ]
     },
     difficulty: 'fácil'
